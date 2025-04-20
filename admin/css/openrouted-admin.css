@@ -1,0 +1,331 @@
+/**
+ * Admin styles for the OpenRouted plugin.
+ *
+ * @since      1.0.0
+ */
+.openrouted-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.openrouted-dashboard-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.openrouted-dashboard-card.full-width {
+    grid-column: 1 / -1;
+}
+
+.alt-tags-stats {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-count {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.generate-controls {
+    margin-bottom: 20px;
+}
+
+.limit-input {
+    margin: 15px 0;
+}
+
+.generator-results {
+    margin-top: 20px;
+    padding: 15px;
+    background: #f0f0f1;
+    border-left: 4px solid #2271b1;
+}
+
+.openrouted-dashboard-action {
+    margin-top: 15px;
+    text-align: center;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 15px;
+}
+
+.tab-button {
+    padding: 8px 16px;
+    cursor: pointer;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: -1px;
+}
+
+.tab-button:hover {
+    background-color: #f1f1f1;
+}
+
+.tab-button.active {
+    border-bottom: 3px solid #2271b1;
+    color: #2271b1;
+}
+
+.tab-button .count {
+    color: #666;
+    font-size: 12px;
+}
+
+.tab-content {
+    display: none;
+    padding: 10px 0;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.table-container {
+    max-height: 875px;
+    overflow-y: auto;
+    margin-bottom: 15px;
+}
+
+/* Alt Tag Details Modal */
+.alt-tag-modal {
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.alt-tag-modal-content {
+    position: relative;
+    background-color: #fefefe;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #888;
+    border-radius: 6px;
+    width: 80%;
+    max-width: 900px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.alt-tag-modal-close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.alt-tag-modal-close:hover,
+.alt-tag-modal-close:focus {
+    color: black;
+    text-decoration: none;
+}
+
+.alt-tag-details-section {
+    margin-bottom: 20px;
+}
+
+.alt-tag-details-section h3 {
+    margin-top: 0;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.code-block {
+    background: #f5f5f5;
+    padding: 10px;
+    overflow: auto;
+    max-height: 300px;
+    font-family: monospace;
+    white-space: pre-wrap;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#modal-image img {
+    max-width: 200px;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+#activity-log-container {
+    max-height: 500px;
+    overflow-y: auto;
+    background: #f5f5f5;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    position: relative;
+}
+
+.activity-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+}
+
+.activity-log-header h3 {
+    margin: 0;
+}
+
+.activity-log-info {
+    color: #666;
+    font-style: italic;
+    margin: 0;
+    font-size: 12px;
+}
+
+.last-updated {
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+.activity-log-table .log-action-generated {
+    color: #2271b1;
+    font-weight: bold;
+}
+
+.activity-log-table .log-action-applied {
+    color: #46b450;
+    font-weight: bold;
+}
+
+.activity-log-table .log-action-rejected {
+    color: #dc3232;
+    font-weight: bold;
+}
+
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(255,255,255,0.8);
+    padding: 20px;
+    text-align: center;
+    border-radius: 4px;
+    z-index: 100;
+}
+
+/* Different row colors for different log types */
+.log-generated {
+    background-color: #f0f7ff !important;
+}
+
+.log-applied {
+    background-color: #f0fff5 !important;
+}
+
+.log-rejected {
+    background-color: #fff0f0 !important;
+}
+
+/* Highlight for success and errors */
+.highlight-success {
+    background-color: #f0fff5 !important;
+    transition: background-color 0.5s ease;
+}
+
+.highlight-error {
+    background-color: #fff0f0 !important;
+    transition: background-color 0.5s ease;
+}
+
+/* Media Library Alt Tag Controls */
+.openrouted-controls {
+    margin-top: 10px;
+}
+
+.openrouted-suggestion {
+    background: #f8f8f8;
+    padding: 10px;
+    border-left: 4px solid #2271b1;
+    margin-top: 10px;
+}
+
+.openrouted-controls .spinner {
+    float: none;
+    margin-left: 5px;
+    visibility: hidden;
+}
+
+.openrouted-controls .spinner.is-active {
+    visibility: visible;
+}
+
+.generate-result {
+    margin-top: 10px;
+}
+
+/* Settings Page */
+.openrouted-settings form {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.openrouted-info {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
+    padding: 15px;
+    border-radius: 4px;
+    margin-top: 20px;
+    clear: both;
+    display: block;
+}
+
+.version-history {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f8f8;
+    border-left: 4px solid #2271b1;
+    border-radius: 2px;
+}
+
+.version-history h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+}
+
+.version-history ul {
+    margin-left: 20px;
+}
+
+.version-history li {
+    margin-bottom: 8px;
+}

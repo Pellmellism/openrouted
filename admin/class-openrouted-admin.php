@@ -1,0 +1,932 @@
+<?php
+/**
+ * The admin-specific functionality of the plugin.
+ *
+ * @since      1.0.0
+ * @package    Openrouted
+ * @subpackage Openrouted/admin
+ */
+
+class Openrouted_Admin {
+
+    /**
+     * Alt tags generator instance.
+     *
+     * @since    1.0.0
+     * @access   private
+     * @var      Openrouted_Generator    $generator    Generator instance.
+     */
+    private $generator;
+
+    /**
+     * Initialize the class and set its properties.
+     *
+     * @since    1.0.0
+     */
+    public function __construct() {
+        $this->generator = new Openrouted_Generator();
+        
+        // Register early action for handling cron refresh
+        add_action('admin_init', array($this, 'handle_cron_refresh'), 5);
+    }
+    
+    /**
+     * Handle cron refresh action early in the WordPress initialization.
+     * This ensures we redirect before any content is sent to the browser.
+     *
+     * @since    1.0.0
+     */
+    public function handle_cron_refresh() {
+        if (isset($_GET['page']) && $_GET['page'] === 'openrouted' && 
+            isset($_GET['refresh_cron']) && current_user_can('manage_options')) {
+            
+            // Get current frequency
+            $frequency = get_option('openrouted_schedule_frequency', 'daily');
+            
+            // Force update the cron schedule with the same frequency to refresh it
+            $this->update_cron_schedule($frequency, $frequency);
+            
+            // Redirect back without the query parameter to prevent multiple refreshes
+            wp_redirect(remove_query_arg('refresh_cron'));
+            exit;
+        }
+    }
+    
+    /**
+     * Register AJAX actions for the plugin.
+     * 
+     * @since    1.0.0
+     */
+    public function register_ajax_actions() {
+        // Register existing AJAX actions
+        add_action('wp_ajax_openrouted_generate_alt_tag', array($this, 'generate_alt_tag'));
+        add_action('wp_ajax_openrouted_apply_alt_tag', array($this, 'apply_alt_tag'));
+        add_action('wp_ajax_openrouted_delete_alt_tag', array($this, 'delete_alt_tag'));
+        add_action('wp_ajax_openrouted_run_bulk_generator', array($this, 'run_bulk_generator'));
+        
+        // Register new AJAX actions for enhanced UI
+        add_action('wp_ajax_openrouted_load_more_alt_tags', array($this, 'load_more_alt_tags'));
+        add_action('wp_ajax_openrouted_get_alt_tag_details', array($this, 'get_alt_tag_details'));
+        add_action('wp_ajax_openrouted_get_activity_log', array($this, 'get_activity_log'));
+        add_action('wp_ajax_openrouted_get_counts', array($this, 'get_counts'));
+        
+        // Register scheduling management AJAX actions
+        add_action('wp_ajax_openrouted_run_scheduled_check', array($this, 'run_scheduled_check'));
+        add_action('wp_ajax_openrouted_refresh_cron_schedule', array($this, 'refresh_cron_schedule'));
+    }
+
+    /**
+     * Register the stylesheets for the admin area.
+     *
+     * @since    1.0.0
+     */
+    public function enqueue_styles() {
+        wp_enqueue_style(
+            'openrouted',
+            OPENROUTED_PLUGIN_URL . 'admin/css/openrouted-admin.css',
+            array(),
+            OPENROUTED_VERSION,
+            'all'
+        );
+    }
+
+    /**
+     * Register the JavaScript for the admin area.
+     *
+     * @since    1.0.0
+     */
+    public function enqueue_scripts() {
+        wp_enqueue_script(
+            'openrouted',
+            OPENROUTED_PLUGIN_URL . 'admin/js/openrouted-admin.js',
+            array('jquery'),
+            OPENROUTED_VERSION,
+            false
+        );
+        
+        wp_localize_script('openrouted', 'openrouted_ajax', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('openrouted_nonce')
+        ));
+    }
+
+    /**
+     * Add menu items for the plugin.
+     *
+     * @since    1.0.0
+     */
+    public function add_plugin_admin_menu() {
+        // Add main menu item
+        add_menu_page(
+            __('OpenRouted', 'openrouted'),
+            __('Alt Tags AI', 'openrouted'),
+            'manage_options',
+            'openrouted',
+            array($this, 'display_plugin_admin_dashboard'),
+            'dashicons-format-image',
+            25
+        );
+        
+        // Add submenu items
+        add_submenu_page(
+            'openrouted',
+            __('Dashboard', 'openrouted'),
+            __('Dashboard', 'openrouted'),
+            'manage_options',
+            'openrouted',
+            array($this, 'display_plugin_admin_dashboard')
+        );
+        
+        add_submenu_page(
+            'openrouted',
+            __('Settings', 'openrouted'),
+            __('Settings', 'openrouted'),
+            'manage_options',
+            'openrouted-settings',
+            array($this, 'display_plugin_admin_settings')
+        );
+    }
+
+    /**
+     * Register settings for the plugin and handle settings updates.
+     * 
+     * @since    1.0.0
+     */
+    public function register_settings() {
+        // Listen for settings changes
+        add_action('update_option_openrouted_schedule_frequency', array($this, 'update_cron_schedule'), 10, 2);
+        // API key setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_api_key',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => '',
+            )
+        );
+        
+        // Operation mode setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_mode',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    // Only allow valid values
+                    $valid_values = array('manual', 'auto');
+                    if (!in_array($value, $valid_values)) {
+                        return 'manual';
+                    }
+                    return $value;
+                },
+                'default' => 'manual',
+            )
+        );
+        
+        // Custom instructions setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_custom_instructions',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => 'wp_kses_post',
+                'default' => '',
+            )
+        );
+        
+        // Schedule frequency setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_schedule_frequency',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    $valid_values = array('minute', '5minutes', '10minutes', '20minutes', '30minutes', 
+                                         'hourly', '2hours', '4hours', '6hours', '12hours', 'daily');
+                    if (!in_array($value, $valid_values)) {
+                        return 'daily';
+                    }
+                    return $value;
+                },
+                'default' => 'daily',
+            )
+        );
+        
+        // Batch size setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_batch_size',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    $valid_values = array('5', '10', '20', '50', '100', 'all');
+                    if (!in_array($value, $valid_values)) {
+                        return '20';
+                    }
+                    return $value;
+                },
+                'default' => '20',
+            )
+        );
+        
+        // Max runtime setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_max_runtime',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    $valid_values = array('0', '1', '2', '5', '10', '15', '20');
+                    if (!in_array($value, $valid_values)) {
+                        return '10';
+                    }
+                    return $value;
+                },
+                'default' => '10',
+            )
+        );
+        
+        // Request delay setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_request_delay',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    $valid_values = array('0', '1', '2', '3', '5', '10');
+                    if (!in_array($value, $valid_values)) {
+                        return '2';
+                    }
+                    return $value;
+                },
+                'default' => '2',
+            )
+        );
+        
+        // Model selection setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_model_selection',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    $valid_values = array('auto', 'paid');
+                    if (!in_array($value, $valid_values)) {
+                        return 'auto';
+                    }
+                    return $value;
+                },
+                'default' => 'auto',
+            )
+        );
+        
+        // Custom model ID setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_custom_model_id',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => '',
+            )
+        );
+        
+        // Preserve data setting
+        register_setting(
+            'openrouted_settings',
+            'openrouted_preserve_data',
+            array(
+                'type' => 'string',
+                'sanitize_callback' => function($value) {
+                    // Only allow valid values
+                    $valid_values = array('yes', 'no');
+                    if (!in_array($value, $valid_values)) {
+                        return 'no';
+                    }
+                    return $value;
+                },
+                'default' => 'no',
+            )
+        );
+    }
+
+    /**
+     * Display the dashboard page.
+     *
+     * @since    1.0.0
+     */
+    public function display_plugin_admin_dashboard() {
+        
+        // Get API info
+        $api = new Openrouted_API();
+        $api_key = get_option('openrouted_api_key', '');
+        $models = array();
+        
+        if (!empty($api_key)) {
+            $models = $api->get_free_vision_models();
+        }
+        
+        // Get alt tag counts
+        $counts = $this->generator->count_alt_tags();
+        
+        // Get images without alt tags count
+        $args = array(
+            'post_type' => 'attachment',
+            'post_mime_type' => 'image',
+            'post_status' => 'inherit',
+            'posts_per_page' => 1,
+            'meta_query' => array(
+                'relation' => 'OR',
+                array(
+                    'key' => '_wp_attachment_image_alt',
+                    'compare' => 'NOT EXISTS'
+                ),
+                array(
+                    'key' => '_wp_attachment_image_alt',
+                    'value' => '',
+                    'compare' => '='
+                )
+            )
+        );
+        
+        $query = new WP_Query($args);
+        $missing_alt_tags = $query->found_posts;
+        
+        // Get last check info
+        $last_check = get_option('openrouted_last_check', array());
+        
+        include_once OPENROUTED_PLUGIN_DIR . 'admin/partials/openrouted-admin-dashboard.php';
+    }
+
+    /**
+     * Display the settings page.
+     *
+     * @since    1.0.0
+     */
+    public function display_plugin_admin_settings() {
+        // Get available models for dropdown
+        $available_models = array();
+        
+        // Get API key
+        $api_key = get_option('openrouted_api_key', '');
+        
+        if (!empty($api_key)) {
+            // Instantiate the API class to get models
+            require_once OPENROUTED_PLUGIN_DIR . 'includes/class-openrouted-api.php';
+            $api = new Openrouted_API();
+            
+            // Get free vision models as default option
+            $free_models = $api->get_free_vision_models();
+            if (!is_wp_error($free_models) && !empty($free_models)) {
+                // Add a single "Free models" option that represents using the best free model
+                $available_models['free'] = 'Free models (uses daily quota)';
+            }
+            
+            // Get paid vision models
+            $paid_models = $api->get_paid_vision_models();
+            
+            // Format models for dropdown
+            if (!is_wp_error($paid_models) && !empty($paid_models)) {
+                foreach ($paid_models as $model) {
+                    if (isset($model['id'])) {
+                        // Create a friendly display name
+                        $base_name = isset($model['name']) ? $model['name'] : $model['id'];
+                        
+                        // Extract model name without version numbers
+                        $clean_name = preg_replace('/:vision.*$/', '', $base_name);
+                        $clean_name = preg_replace('/-\d+.*$/', '', $clean_name);
+                        
+                        // Capitalize and format nicely
+                        $display_name = ucwords(str_replace(['-', '_'], ' ', $clean_name));
+                        
+                        // Add "Paid" indicator
+                        $display_name = $display_name . ' (Paid)';
+                        
+                        $available_models[$model['id']] = $display_name;
+                    }
+                }
+            }
+        }
+        
+        // Pass the models to the settings page
+        include_once OPENROUTED_PLUGIN_DIR . 'admin/partials/openrouted-admin-settings.php';
+    }
+    
+    /**
+     * Updates the cron schedule when frequency setting is changed.
+     *
+     * @since    1.0.0
+     * @param    string    $old_value    The old option value.
+     * @param    string    $new_value    The new option value.
+     */
+    public function update_cron_schedule($old_value, $new_value) {
+        global $wp_version;
+        error_log("OpenRouted: WordPress Version: $wp_version");
+        error_log("OpenRouted: Updating cron schedule from '$old_value' to '$new_value'");
+        
+        // A simpler and more reliable approach to cron scheduling
+        
+        // 1. First, clear the hook entirely
+        wp_clear_scheduled_hook('openrouted_daily_check');
+        error_log("OpenRouted: Cleared all scheduled hooks");
+        
+        // 2. Force WordPress to recalculate schedules
+        delete_transient('doing_cron');
+        
+        // 3. Calculate the next run time
+        $schedule_time = time();
+        if (in_array($new_value, array('minute', '5minutes'))) {
+            // For very frequent schedules, add a small buffer
+            $schedule_time += 15; 
+        }
+        
+        // 4. Schedule the event with a simple call
+        $result = wp_schedule_event($schedule_time, $new_value, 'openrouted_daily_check');
+        
+        if ($result === false) {
+            error_log("OpenRouted: Failed to schedule event with wp_schedule_event");
+            
+            // Try direct insertion into cron option
+            $schedules = wp_get_schedules();
+            $interval = isset($schedules[$new_value]['interval']) ? $schedules[$new_value]['interval'] : 86400;
+            
+            $crons = get_option('cron', array());
+            $hook_hash = md5(serialize(array()));
+            
+            $crons[$schedule_time]['openrouted_daily_check'][$hook_hash] = array(
+                'schedule' => $new_value,
+                'interval' => $interval,
+                'args' => array()
+            );
+            
+            update_option('cron', $crons);
+            error_log("OpenRouted: Manually added cron schedule for '$new_value'");
+        } else {
+            error_log("OpenRouted: Successfully scheduled event for " . date('Y-m-d H:i:s', $schedule_time));
+        }
+        
+        // 5. Also add a one-time event for immediate execution (except for daily)
+        if ($new_value !== 'daily' && $new_value !== '12hours') {
+            $immediate_time = time() + 30;
+            wp_schedule_single_event($immediate_time, 'openrouted_daily_check');
+            error_log("OpenRouted: Added immediate single run at " . date('Y-m-d H:i:s', $immediate_time));
+        }
+        
+        // 6. Verify the schedule
+        $next_run = wp_next_scheduled('openrouted_daily_check');
+        error_log("OpenRouted: Next run scheduled for " . ($next_run ? date('Y-m-d H:i:s', $next_run) : 'NONE'));
+        
+        // 7. Store the schedule info for dashboard display
+        update_option('openrouted_last_schedule_update', array(
+            'timestamp' => time(),
+            'frequency' => $new_value,
+            'next_run' => $next_run
+        ));
+        
+        // 8. Return whether scheduling was successful
+        return ($next_run !== false);
+    }
+
+    /**
+     * Add generate alt tag button to media edit screen.
+     *
+     * @since    1.0.0
+     * @param    array     $form_fields    An array of attachment form fields.
+     * @param    WP_Post   $post           The WP_Post attachment object.
+     * @return   array                     The modified form fields.
+     */
+    public function add_alt_tag_button($form_fields, $post) {
+        // Only for images
+        if (strpos($post->post_mime_type, 'image') !== 0) {
+            return $form_fields;
+        }
+        
+        // Check for API key
+        $api_key = get_option('openrouted_api_key', '');
+        if (empty($api_key)) {
+            return $form_fields;
+        }
+        
+        // Check if this image already has an alt tag
+        $alt_text = get_post_meta($post->ID, '_wp_attachment_image_alt', true);
+        
+        // Check if we have a pending generated alt tag
+        $alt_tag = $this->generator->get_alt_tag_by_image_id($post->ID, 'pending');
+        
+        $html = '<div class="openrouted-controls">';
+        
+        if ($alt_tag) {
+            // We have a pending alt tag suggestion
+            $html .= '<div class="openrouted-suggestion">';
+            $html .= '<p><strong>' . __('AI Suggestion:', 'openrouted') . '</strong> ' . esc_html($alt_tag->alt_text) . '</p>';
+            $html .= '<button type="button" class="button apply-alt-tag" data-id="' . esc_attr($alt_tag->id) . '">' . __('Apply', 'openrouted') . '</button> ';
+            $html .= '<button type="button" class="button delete-alt-tag" data-id="' . esc_attr($alt_tag->id) . '">' . __('Reject', 'openrouted') . '</button>';
+            $html .= '</div>';
+        } else {
+            // No pending suggestion, show generate button
+            $html .= '<button type="button" class="button generate-alt-tag" data-id="' . esc_attr($post->ID) . '">' . __('Generate with AI', 'openrouted') . '</button>';
+            $html .= '<span class="spinner"></span>';
+            $html .= '<div class="generate-result"></div>';
+        }
+        
+        $html .= '</div>';
+        
+        // Add our button after the alt text field
+        $form_fields['alt']['label'] .= $html;
+        
+        return $form_fields;
+    }
+
+    /**
+     * AJAX handler for generating alt tag.
+     *
+     * @since    1.0.0
+     */
+    public function generate_alt_tag() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get image ID
+        $image_id = isset($_POST['image_id']) ? intval($_POST['image_id']) : 0;
+        
+        if ($image_id <= 0) {
+            wp_send_json_error(array('message' => __('Invalid image ID.', 'openrouted')));
+        }
+        
+        // Generate alt tag
+        $result = $this->generator->generate_alt_tag_for_image($image_id);
+        
+        if (is_wp_error($result)) {
+            wp_send_json_error(array('message' => $result->get_error_message()));
+        } else {
+            wp_send_json_success(array(
+                'id' => $result['id'],
+                'alt_text' => $result['alt_text'],
+                'message' => __('Alt tag generated successfully.', 'openrouted')
+            ));
+        }
+    }
+
+    /**
+     * AJAX handler for applying alt tag.
+     *
+     * @since    1.0.0
+     */
+    public function apply_alt_tag() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get alt tag ID
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+        
+        if ($id <= 0) {
+            wp_send_json_error(array('message' => __('Invalid alt tag ID.', 'openrouted')));
+        }
+        
+        // Apply alt tag
+        $result = $this->generator->apply_alt_tag($id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Alt tag applied successfully.', 'openrouted')));
+        } else {
+            wp_send_json_error(array('message' => __('Failed to apply alt tag.', 'openrouted')));
+        }
+    }
+
+    /**
+     * AJAX handler for deleting alt tag.
+     *
+     * @since    1.0.0
+     */
+    public function delete_alt_tag() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get alt tag ID
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+        
+        if ($id <= 0) {
+            wp_send_json_error(array('message' => __('Invalid alt tag ID.', 'openrouted')));
+        }
+        
+        // Delete alt tag
+        $result = $this->generator->delete_alt_tag($id);
+        
+        if ($result) {
+            wp_send_json_success(array('message' => __('Alt tag rejected.', 'openrouted')));
+        } else {
+            wp_send_json_error(array('message' => __('Failed to reject alt tag.', 'openrouted')));
+        }
+    }
+
+    /**
+     * AJAX handler for running bulk generator.
+     *
+     * @since    1.0.0
+     */
+    public function run_bulk_generator() {
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get limit
+        $limit = isset($_POST['limit']) ? intval($_POST['limit']) : 10;
+        
+        // Run the scan
+        $results = $this->generator->scan_missing_alt_tags($limit);
+        
+        wp_send_json_success(array(
+            'message' => sprintf(
+                __('Found %d images without alt tags, processed %d, and generated %d new alt tags.', 'openrouted'),
+                $results['found'],
+                $results['processed'],
+                $results['generated']
+            ),
+            'data' => $results
+        ));
+    }
+    
+    /**
+     * AJAX handler for loading more alt tags.
+     *
+     * @since    1.0.0
+     */
+    public function load_more_alt_tags() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get parameters
+        $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'pending';
+        $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
+        $limit = 10; // Number of items to load each time
+        
+        // Get alt tags
+        $alt_tags = $this->generator->get_more_alt_tags($status, $offset, $limit);
+        
+        // Check if there are more to load
+        $total_count = $this->generator->count_alt_tags_by_status($status);
+        $has_more = ($offset + $limit) < $total_count;
+        
+        // Format response data
+        $formatted_alt_tags = array();
+        
+        foreach ($alt_tags as $alt_tag) {
+            // Get image info
+            $thumb_url = '';
+            $edit_url = '';
+            if ($alt_tag->image_id) {
+                $thumb_url = wp_get_attachment_image_url($alt_tag->image_id, 'thumbnail');
+                $edit_url = get_edit_post_link($alt_tag->image_id);
+            }
+            
+            // Extract model information
+            $model = '';
+            if (!empty($alt_tag->response)) {
+                $response_data = json_decode($alt_tag->response, true);
+                if (isset($response_data['model'])) {
+                    $model = $response_data['model'];
+                }
+            }
+            
+            $formatted_alt_tags[] = array(
+                'id' => $alt_tag->id,
+                'image_id' => $alt_tag->image_id,
+                'alt_text' => $alt_tag->alt_text,
+                'status' => $alt_tag->status,
+                'timestamp' => $alt_tag->timestamp,
+                'applied_timestamp' => $alt_tag->applied_timestamp,
+                'thumb_url' => $thumb_url,
+                'edit_url' => $edit_url,
+                'model' => $model
+            );
+        }
+        
+        wp_send_json_success(array(
+            'alt_tags' => $formatted_alt_tags,
+            'has_more' => $has_more
+        ));
+    }
+    
+    /**
+     * AJAX handler for getting alt tag details.
+     *
+     * @since    1.0.0
+     */
+    public function get_alt_tag_details() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get alt tag ID
+        $id = isset($_POST['id']) ? intval($_POST['id']) : 0;
+        
+        if ($id <= 0) {
+            wp_send_json_error(array('message' => __('Invalid alt tag ID.', 'openrouted')));
+        }
+        
+        // Get alt tag details
+        $alt_tag = $this->generator->get_alt_tag($id);
+        
+        if (!$alt_tag) {
+            wp_send_json_error(array('message' => __('Alt tag not found.', 'openrouted')));
+        }
+        
+        // Get image URL
+        $thumb_url = '';
+        $image_url = '';
+        if ($alt_tag->image_id) {
+            $thumb_url = wp_get_attachment_image_url($alt_tag->image_id, 'thumbnail');
+            $image_url = wp_get_attachment_image_url($alt_tag->image_id, 'medium');
+        }
+        
+        // Extract model from response if available
+        $model = '';
+        if (!empty($alt_tag->response)) {
+            $response_data = json_decode($alt_tag->response, true);
+            if (isset($response_data['model'])) {
+                $model = $response_data['model'];
+            }
+        }
+        
+        $details = array(
+            'id' => $alt_tag->id,
+            'image_id' => $alt_tag->image_id,
+            'alt_text' => $alt_tag->alt_text,
+            'status' => $alt_tag->status,
+            'timestamp' => $alt_tag->timestamp,
+            'applied_timestamp' => $alt_tag->applied_timestamp,
+            'image_url' => $image_url,
+            'thumb_url' => $thumb_url,
+            'model' => $model,
+            'initial_payload' => $alt_tag->initial_payload,
+            'response' => $alt_tag->response,
+            'duration' => $alt_tag->duration
+        );
+        
+        wp_send_json_success(array('details' => $details));
+    }
+    
+    /**
+     * AJAX handler for getting activity log.
+     *
+     * @since    1.0.0
+     */
+    public function get_activity_log() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get activity log
+        $log = $this->generator->get_activity_log(50); // Limit to the last 50 entries
+        
+        wp_send_json_success(array('log' => $log));
+    }
+    
+    /**
+     * AJAX handler for getting alt tag counts.
+     *
+     * @since    1.0.0
+     */
+    public function get_counts() {
+        // Check permissions
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get counts
+        $counts = $this->generator->count_alt_tags();
+        
+        wp_send_json_success(array('counts' => $counts));
+    }
+    
+    /**
+     * AJAX handler for running the scheduled check manually.
+     * 
+     * @since    1.0.0
+     */
+    public function run_scheduled_check() {
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Check if a process is already running
+        if (get_transient('openrouted_process_lock')) {
+            wp_send_json_error(array('message' => __('Process is already running. Please wait until it completes.', 'openrouted')));
+            return;
+        }
+        
+        // Run the cron job directly
+        do_action('openrouted_daily_check');
+        
+        // Check if the process is now running (should be)
+        if (get_transient('openrouted_process_lock')) {
+            wp_send_json_success(array('message' => __('Scheduled check has started running.', 'openrouted')));
+        } else {
+            // If process didn't start (unusual), run it in the background
+            wp_schedule_single_event(time(), 'openrouted_daily_check');
+            wp_send_json_success(array('message' => __('Scheduled check has been triggered.', 'openrouted')));
+        }
+    }
+    
+    /**
+     * AJAX handler for refreshing the cron schedule.
+     * 
+     * @since    1.0.0
+     */
+    public function refresh_cron_schedule() {
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => __('You do not have permission to perform this action.', 'openrouted')));
+        }
+        
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+            wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
+        }
+        
+        // Get current frequency setting
+        $frequency = get_option('openrouted_schedule_frequency', 'daily');
+        
+        // Force update the cron schedule
+        $result = $this->update_cron_schedule($frequency, $frequency);
+        
+        // Get the newly scheduled time
+        $next_run = wp_next_scheduled('openrouted_daily_check');
+        
+        if ($next_run) {
+            $formatted_time = date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $next_run);
+            $time_diff = human_time_diff(time(), $next_run);
+            
+            wp_send_json_success(array(
+                'message' => sprintf(
+                    __('Cron schedule refreshed! Next run: %s (%s from now)', 'openrouted'),
+                    $formatted_time,
+                    $time_diff
+                ),
+                'next_run' => $next_run,
+                'formatted_time' => $formatted_time,
+                'time_diff' => $time_diff
+            ));
+        } else {
+            wp_send_json_error(array('message' => __('Failed to refresh cron schedule. Please check server logs.', 'openrouted')));
+        }
+    }
+}
