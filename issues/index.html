@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenRouted Support - Report Issues</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f9f9f9;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .logo {
+            max-width: 150px;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            color: #2271b1;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #646970;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        .option {
+            flex: 1 1 300px;
+            padding: 1.5rem;
+            background-color: #f0f6fc;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .option h3 {
+            color: #2271b1;
+            margin-top: 0;
+        }
+        .button {
+            display: inline-block;
+            background-color: #2271b1;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        .button:hover {
+            background-color: #135e96;
+        }
+        .contact {
+            text-align: center;
+            padding: 1.5rem;
+            background-color: #f0f6fc;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+        .contact a {
+            color: #2271b1;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .contact a:hover {
+            text-decoration: underline;
+        }
+        .faq {
+            margin-top: 2rem;
+        }
+        .faq h3 {
+            color: #2271b1;
+        }
+        .faq-item {
+            margin-bottom: 1.5rem;
+        }
+        .faq-question {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            font-size: 0.9rem;
+            color: #646970;
+        }
+        .footer a {
+            color: #2271b1;
+            text-decoration: none;
+        }
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <img src="../openrouted.png" alt="OpenRouted Logo" class="logo">
+        <h1>OpenRouted Support</h1>
+        <div class="subtitle">Get help with the AI Alt Tags Generator</div>
+    </header>
+    
+    <div class="card">
+        <h2>Report Issues & Get Support</h2>
+        <p>We're committed to making OpenRouted the best AI alt tag generator for WordPress. If you've encountered any issues or have suggestions for improvements, we want to hear from you!</p>
+        
+        <div class="options">
+            <div class="option">
+                <h3>GitHub Issues</h3>
+                <p>For bugs, feature requests, and technical issues, please use our GitHub repository.</p>
+                <a href="https://github.com/Pellmellism/openrouted/issues" class="button">Report on GitHub</a>
+            </div>
+            <div class="option">
+                <h3>Email Support</h3>
+                <p>Need personalized assistance or have general questions? Reach out directly by email.</p>
+                <a href="mailto:hello@openrouted.com" class="button">Contact Support</a>
+            </div>
+        </div>
+        
+        <div class="faq">
+            <h3>Frequently Asked Questions</h3>
+            
+            <div class="faq-item">
+                <div class="faq-question">The plugin isn't generating alt tags for my images. What's wrong?</div>
+                <div class="faq-answer">First, check if you've entered a valid OpenRouter API key in the settings. Next, ensure your server can make outbound API calls. If problems persist, check the plugin's logs or contact support.</div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">How many images can I process per day?</div>
+                <div class="faq-answer">OpenRouted uses OpenRouter's free tier, which typically allows for around 20-30 image generations per day. The exact number may vary based on OpenRouter's current quota system.</div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">Can I customize how the AI describes my images?</div>
+                <div class="faq-answer">Yes! In the plugin settings, you can provide custom instructions to guide the AI in generating alt text that matches your site's tone and style.</div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-question">Is this plugin compatible with my theme/page builder?</div>
+                <div class="faq-answer">OpenRouted is designed to work with standard WordPress media management. It should work with most themes and popular page builders, but specific compatibility may vary.</div>
+            </div>
+        </div>
+        
+        <div class="contact">
+            <p>Don't see your question answered here?</p>
+            <p>Email us at <a href="mailto:hello@openrouted.com">hello@openrouted.com</a></p>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p><a href="https://openrouted.com">OpenRouted</a> | <a href="../donate/">Support Us</a> | <a href="../">Back to Home</a></p>
+        <p>© 2025 OpenRouted - All Rights Reserved</p>
+    </div>
+</body>
+</html>
