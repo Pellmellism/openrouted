@@ -1,16 +1,16 @@
 # 🖼️ OpenRouted - AI Alt Tags Generator for WordPress
 
-<img src="openrouted.png" alt="OpenRouted Logo" width="150" align="right"/>
+
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
 
 ## 🤖 What is this magic?
-
+<img src="openrouted.png" alt="OpenRouted Logo" width="150" align="right"/>
 OpenRouted is a **zero-setup AI solution** that automatically generates descriptive alt tags for your WordPress images. No more tedious manual writing of alt text!
 
 *"But wait, don't AI solutions cost money?"* Not this one! OpenRouted leverages OpenRouter's **free daily quota** of AI vision calls, making this accessible to everyone.
 
-![OpenRouted Demo](assets/img/openrouted-demo.gif)
+
 
 ## 📸 Dashboard Overview
 
