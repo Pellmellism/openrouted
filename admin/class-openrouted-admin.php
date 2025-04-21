@@ -38,7 +38,8 @@ class Openrouted_Admin {
      */
     public function handle_cron_refresh() {
         if (isset($_GET['page']) && $_GET['page'] === 'openrouted' && 
-            isset($_GET['refresh_cron']) && current_user_can('manage_options')) {
+            isset($_GET['refresh_cron']) && current_user_can('manage_options') &&
+            isset($_GET['_wpnonce']) && wp_verify_nonce(sanitize_key($_GET['_wpnonce']), 'openrouted_refresh_cron')) {
             
             // Get current frequency
             $frequency = get_option('openrouted_schedule_frequency', 'daily');
@@ -148,6 +149,145 @@ class Openrouted_Admin {
     }
 
     /**
+     * Sanitize operation mode setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_mode($value) {
+        $valid_values = array('manual', 'auto');
+        if (!in_array($value, $valid_values)) {
+            return 'manual';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize schedule frequency setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_schedule_frequency($value) {
+        $valid_values = array('minute', '5minutes', '10minutes', '20minutes', '30minutes', 
+                             'hourly', '2hours', '4hours', '6hours', '12hours', 'daily');
+        if (!in_array($value, $valid_values)) {
+            return 'daily';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize batch size setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_batch_size($value) {
+        $valid_values = array('5', '10', '20', '50', '100', 'all');
+        if (!in_array($value, $valid_values)) {
+            return '20';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize max runtime setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_max_runtime($value) {
+        $valid_values = array('0', '1', '2', '5', '10', '15', '20');
+        if (!in_array($value, $valid_values)) {
+            return '10';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize request delay setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_request_delay($value) {
+        $valid_values = array('0', '1', '2', '3', '5', '10');
+        if (!in_array($value, $valid_values)) {
+            return '2';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize model selection setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_model_selection($value) {
+        $valid_values = array('auto', 'paid');
+        if (!in_array($value, $valid_values)) {
+            return 'auto';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize preserve data setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_preserve_data($value) {
+        $valid_values = array('yes', 'no');
+        if (!in_array($value, $valid_values)) {
+            return 'no';
+        }
+        return $value;
+    }
+
+    /**
+     * Sanitize API key setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_api_key($value) {
+        return sanitize_text_field($value);
+    }
+
+    /**
+     * Sanitize custom instructions setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_custom_instructions($value) {
+        return wp_kses_post($value);
+    }
+
+    /**
+     * Sanitize custom model ID setting.
+     *
+     * @since    1.0.0
+     * @param    string    $value    The value to sanitize.
+     * @return   string              The sanitized value.
+     */
+    public function sanitize_custom_model_id($value) {
+        return sanitize_text_field($value);
+    }
+
+    /**
      * Register settings for the plugin and handle settings updates.
      * 
      * @since    1.0.0
@@ -155,160 +295,169 @@ class Openrouted_Admin {
     public function register_settings() {
         // Listen for settings changes
         add_action('update_option_openrouted_schedule_frequency', array($this, 'update_cron_schedule'), 10, 2);
+        
         // API key setting
         register_setting(
             'openrouted_settings',
             'openrouted_api_key',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
-                'default' => '',
-            )
+            'sanitize_text_field'
         );
         
         // Operation mode setting
         register_setting(
             'openrouted_settings',
             'openrouted_mode',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    // Only allow valid values
-                    $valid_values = array('manual', 'auto');
-                    if (!in_array($value, $valid_values)) {
-                        return 'manual';
-                    }
-                    return $value;
-                },
-                'default' => 'manual',
-            )
+            'sanitize_text_field'
         );
         
         // Custom instructions setting
         register_setting(
             'openrouted_settings',
             'openrouted_custom_instructions',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => 'wp_kses_post',
-                'default' => '',
-            )
+            'wp_kses_post'
         );
         
         // Schedule frequency setting
         register_setting(
             'openrouted_settings',
             'openrouted_schedule_frequency',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    $valid_values = array('minute', '5minutes', '10minutes', '20minutes', '30minutes', 
-                                         'hourly', '2hours', '4hours', '6hours', '12hours', 'daily');
-                    if (!in_array($value, $valid_values)) {
-                        return 'daily';
-                    }
-                    return $value;
-                },
-                'default' => 'daily',
-            )
+            'sanitize_text_field'
         );
         
         // Batch size setting
         register_setting(
             'openrouted_settings',
             'openrouted_batch_size',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    $valid_values = array('5', '10', '20', '50', '100', 'all');
-                    if (!in_array($value, $valid_values)) {
-                        return '20';
-                    }
-                    return $value;
-                },
-                'default' => '20',
-            )
+            'sanitize_text_field'
         );
         
         // Max runtime setting
         register_setting(
             'openrouted_settings',
             'openrouted_max_runtime',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    $valid_values = array('0', '1', '2', '5', '10', '15', '20');
-                    if (!in_array($value, $valid_values)) {
-                        return '10';
-                    }
-                    return $value;
-                },
-                'default' => '10',
-            )
+            'sanitize_text_field'
         );
         
         // Request delay setting
         register_setting(
             'openrouted_settings',
             'openrouted_request_delay',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    $valid_values = array('0', '1', '2', '3', '5', '10');
-                    if (!in_array($value, $valid_values)) {
-                        return '2';
-                    }
-                    return $value;
-                },
-                'default' => '2',
-            )
+            'sanitize_text_field'
         );
         
         // Model selection setting
         register_setting(
             'openrouted_settings',
             'openrouted_model_selection',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    $valid_values = array('auto', 'paid');
-                    if (!in_array($value, $valid_values)) {
-                        return 'auto';
-                    }
-                    return $value;
-                },
-                'default' => 'auto',
-            )
+            'sanitize_text_field'
         );
         
         // Custom model ID setting
         register_setting(
             'openrouted_settings',
             'openrouted_custom_model_id',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => 'sanitize_text_field',
-                'default' => '',
-            )
+            'sanitize_text_field'
         );
         
         // Preserve data setting
         register_setting(
             'openrouted_settings',
             'openrouted_preserve_data',
-            array(
-                'type' => 'string',
-                'sanitize_callback' => function($value) {
-                    // Only allow valid values
-                    $valid_values = array('yes', 'no');
-                    if (!in_array($value, $valid_values)) {
-                        return 'no';
-                    }
-                    return $value;
-                },
-                'default' => 'no',
-            )
+            'sanitize_text_field'
         );
+        
+        // Add filters to validate the sanitized values
+        add_filter('pre_update_option_openrouted_mode', array($this, 'validate_mode'), 10, 2);
+        add_filter('pre_update_option_openrouted_schedule_frequency', array($this, 'validate_schedule_frequency'), 10, 2);
+        add_filter('pre_update_option_openrouted_batch_size', array($this, 'validate_batch_size'), 10, 2);
+        add_filter('pre_update_option_openrouted_max_runtime', array($this, 'validate_max_runtime'), 10, 2);
+        add_filter('pre_update_option_openrouted_request_delay', array($this, 'validate_request_delay'), 10, 2);
+        add_filter('pre_update_option_openrouted_model_selection', array($this, 'validate_model_selection'), 10, 2);
+        add_filter('pre_update_option_openrouted_preserve_data', array($this, 'validate_preserve_data'), 10, 2);
+    }
+    
+    /**
+     * Validates mode after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_mode($value, $old_value) {
+        return $this->sanitize_mode($value, $old_value);
+    }
+    
+    /**
+     * Validates schedule frequency after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_schedule_frequency($value, $old_value) {
+        return $this->sanitize_schedule_frequency($value, $old_value);
+    }
+    
+    /**
+     * Validates batch size after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_batch_size($value, $old_value) {
+        return $this->sanitize_batch_size($value, $old_value);
+    }
+    
+    /**
+     * Validates max runtime after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_max_runtime($value, $old_value) {
+        return $this->sanitize_max_runtime($value, $old_value);
+    }
+    
+    /**
+     * Validates request delay after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_request_delay($value, $old_value) {
+        return $this->sanitize_request_delay($value, $old_value);
+    }
+    
+    /**
+     * Validates model selection after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_model_selection($value, $old_value) {
+        return $this->sanitize_model_selection($value, $old_value);
+    }
+    
+    /**
+     * Validates preserve data after sanitization
+     *
+     * @since    1.0.0
+     * @param    string    $value     The sanitized value
+     * @param    string    $old_value The old value
+     * @return   string    The validated value
+     */
+    public function validate_preserve_data($value, $old_value) {
+        return $this->sanitize_preserve_data($value, $old_value);
     }
 
     /**
@@ -422,14 +571,11 @@ class Openrouted_Admin {
      */
     public function update_cron_schedule($old_value, $new_value) {
         global $wp_version;
-        error_log("OpenRouted: WordPress Version: $wp_version");
-        error_log("OpenRouted: Updating cron schedule from '$old_value' to '$new_value'");
         
         // A simpler and more reliable approach to cron scheduling
         
         // 1. First, clear the hook entirely
         wp_clear_scheduled_hook('openrouted_daily_check');
-        error_log("OpenRouted: Cleared all scheduled hooks");
         
         // 2. Force WordPress to recalculate schedules
         delete_transient('doing_cron');
@@ -445,8 +591,6 @@ class Openrouted_Admin {
         $result = wp_schedule_event($schedule_time, $new_value, 'openrouted_daily_check');
         
         if ($result === false) {
-            error_log("OpenRouted: Failed to schedule event with wp_schedule_event");
-            
             // Try direct insertion into cron option
             $schedules = wp_get_schedules();
             $interval = isset($schedules[$new_value]['interval']) ? $schedules[$new_value]['interval'] : 86400;
@@ -461,21 +605,16 @@ class Openrouted_Admin {
             );
             
             update_option('cron', $crons);
-            error_log("OpenRouted: Manually added cron schedule for '$new_value'");
-        } else {
-            error_log("OpenRouted: Successfully scheduled event for " . date('Y-m-d H:i:s', $schedule_time));
         }
         
         // 5. Also add a one-time event for immediate execution (except for daily)
         if ($new_value !== 'daily' && $new_value !== '12hours') {
             $immediate_time = time() + 30;
             wp_schedule_single_event($immediate_time, 'openrouted_daily_check');
-            error_log("OpenRouted: Added immediate single run at " . date('Y-m-d H:i:s', $immediate_time));
         }
         
         // 6. Verify the schedule
         $next_run = wp_next_scheduled('openrouted_daily_check');
-        error_log("OpenRouted: Next run scheduled for " . ($next_run ? date('Y-m-d H:i:s', $next_run) : 'NONE'));
         
         // 7. Store the schedule info for dashboard display
         update_option('openrouted_last_schedule_update', array(
@@ -550,7 +689,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -587,7 +726,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -620,7 +759,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -653,7 +792,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -665,7 +804,8 @@ class Openrouted_Admin {
         
         wp_send_json_success(array(
             'message' => sprintf(
-                __('Found %d images without alt tags, processed %d, and generated %d new alt tags.', 'openrouted'),
+                /* translators: %1$d: images without alt tags, %2$d: processed images, %3$d: new alt tags generated */
+                __('Found %1$d images without alt tags, processed %2$d, and generated %3$d new alt tags.', 'openrouted'),
                 $results['found'],
                 $results['processed'],
                 $results['generated']
@@ -686,12 +826,12 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
         // Get parameters
-        $status = isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'pending';
+        $status = isset($_POST['status']) ? sanitize_text_field(wp_unslash($_POST['status'])) : 'pending';
         $offset = isset($_POST['offset']) ? intval($_POST['offset']) : 0;
         $limit = 10; // Number of items to load each time
         
@@ -754,7 +894,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -819,7 +959,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -841,7 +981,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -863,7 +1003,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -898,7 +1038,7 @@ class Openrouted_Admin {
         }
         
         // Verify nonce
-        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'openrouted_nonce')) {
+        if (!isset($_POST['nonce']) || !wp_verify_nonce(sanitize_key(wp_unslash($_POST['nonce'])), 'openrouted_nonce')) {
             wp_send_json_error(array('message' => __('Security verification failed.', 'openrouted')));
         }
         
@@ -917,7 +1057,8 @@ class Openrouted_Admin {
             
             wp_send_json_success(array(
                 'message' => sprintf(
-                    __('Cron schedule refreshed! Next run: %s (%s from now)', 'openrouted'),
+                    /* translators: %1$s: formatted next run time, %2$s: time from now */
+                    __('Cron schedule refreshed! Next run: %1$s (%2$s from now)', 'openrouted'),
                     $formatted_time,
                     $time_diff
                 ),

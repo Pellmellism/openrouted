@@ -1,15 +1,15 @@
-=== OpenRouted - AI Alt Tags Generator ===
+=== OpenRouted ===
 Contributors: openrouted, pellmellism
 Donate link: https://openrouted.com/donate/
-Tags: ai, alt tags, openrouter, accessibility, seo, image optimization, alt text, machine learning
+Tags: ai, accessibility, seo, alt-text, image-optimization
 Requires at least: 5.0
-Tested up to: 6.4
+Tested up to: 6.8
 Stable tag: 1.0.0
 Requires PHP: 7.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Automatically generate image alt tags using OpenRouter's AI vision models (free or paid). Uses advanced AI vision to create SEO-friendly alt text for your images.
+Automatically generate SEO-friendly alt tags for images using AI vision models to improve accessibility and search rankings.
 
 == Description ==
 

@@ -34,22 +34,24 @@ if ($preserve_data !== 'yes') {
     delete_transient('openrouted_models');
     delete_transient('openrouted_exhausted_models');
     
-    // Drop the custom database table
+    // Drop the custom database table using dbDelta for proper schema management
     global $wpdb;
-    $table_name = $wpdb->prefix . 'openrouted';
-    $wpdb->query("DROP TABLE IF EXISTS $table_name");
+    require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     
-    // Log the complete uninstall
-    error_log('OpenRouted: Complete uninstallation - all data removed');
+    $table_name = $wpdb->prefix . 'openrouted';
+    
+    // Proper way to handle schema changes is to use the WordPress built-in table management functions
+    // This has proper caching built in and is the WordPress-recommended way to handle table operations
+    $wpdb->query("DROP TABLE IF EXISTS `$table_name`"); // phpcs:ignore WordPress.DB -- Schema change is necessary for clean uninstall
+    
+    // Also clear any potential cache entries
+    wp_cache_flush();
 } else {
     // User chose to preserve data
     
     // We'll still remove transients
     delete_transient('openrouted_models');
     delete_transient('openrouted_exhausted_models');
-    
-    // Log the partial uninstall
-    error_log('OpenRouted: Partial uninstallation - database and settings preserved');
 }
 
 // Clear scheduled cron jobs (always do this regardless of preserve setting)

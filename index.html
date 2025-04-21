@@ -46,6 +46,7 @@
             font-weight: bold;
             margin: 20px 10px;
             transition: background-color 0.3s;
+            cursor: pointer;
         }
         .wp-button:hover {
             background-color: #1a5c79;
@@ -72,6 +73,39 @@
             color: #7f8c8d;
             font-size: 0.9em;
         }
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            position: relative;
+            text-align: center;
+        }
+        .close-modal {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #aaa;
+        }
+        .close-modal:hover {
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -79,8 +113,18 @@
         <h1>🖼️ OpenRouted</h1>
         <p>AI-Powered Alt Tags Generator for WordPress</p>
         <a href="https://github.com/Pellmellism/openrouted" class="github-button">View on GitHub</a>
-        <a href="https://wordpress.org/plugins/openrouted/" class="wp-button">WordPress Plugin Page</a>
+        <button id="wp-plugin-button" class="wp-button">WordPress Plugin Page</button>
     </header>
+    
+    <!-- Modal -->
+    <div id="plugin-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h2>Plugin Submission Status</h2>
+            <p>The plugin submission to the WordPress repository is still pending review.</p>
+            <p>Please check back soon for the official plugin page!</p>
+        </div>
+    </div>
 
     <main>
         <h2>What is OpenRouted?</h2>
@@ -120,5 +164,29 @@
     <footer>
         <p>Made with ❤️ by OpenRouted | <a href="https://github.com/Pellmellism/openrouted/issues">Report Issues</a></p>
     </footer>
+
+    <script>
+        // Modal functionality
+        const modal = document.getElementById('plugin-modal');
+        const btn = document.getElementById('wp-plugin-button');
+        const closeBtn = document.querySelector('.close-modal');
+        
+        // Open modal when button is clicked
+        btn.addEventListener('click', function() {
+            modal.style.display = 'block';
+        });
+        
+        // Close modal when close button is clicked
+        closeBtn.addEventListener('click', function() {
+            modal.style.display = 'none';
+        });
+        
+        // Close modal when clicking outside of it
+        window.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
 </body>
 </html>

@@ -65,6 +65,5 @@ class Openrouted_Activator {
         
         // Schedule the recurring event
         wp_schedule_event($start_time, $frequency, 'openrouted_daily_check');
-        error_log("OpenRouted: Scheduled initial cron job with frequency '$frequency' at " . date('Y-m-d H:i:s', $start_time));
     }
 }
